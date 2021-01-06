@@ -20,22 +20,35 @@ namespace DataRequestAPI
             [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest req,
             ILogger log)
         {
-            log.LogInformation("C# HTTP trigger function processed a request.");
+            log.LogInformation("OpenData API request.");
 
             string url = req.Query["url"];
             string key = req.Query["key"];
 
-            var datas = await RequestCovid(url,key);
-            var targetDate = DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd");
-            var cnt = datas.Where(x => x.”­•\“ú == targetDate).Count();
+            var datas = await RequestCovid(url,key,log);
+            if (datas != null)
+            {
+                var targetDate = DateTime.Today.AddDays(-1).ToString("yyyy-MM-dd");
+                var cnt = datas.Where(x => x.”­•\“ú == targetDate).Count();
 
-            return new OkObjectResult(cnt);
+                return new OkObjectResult(cnt);
+            }
+            else
+            {
+                return new StatusCodeResult(StatusCodes.Status500InternalServerError);
+            }
         }
-        private static async Task<List<CovidModel>> RequestCovid(string url,string key)
+        private static async Task<List<CovidModel>> RequestCovid(string url,string key, ILogger log)
         {
             var requrl = $"{url}?apikey={key}";
             var result = await new HttpClient().GetAsync(requrl, HttpCompletionOption.ResponseHeadersRead);
             var jsonString = await result.Content.ReadAsStringAsync();
+
+            if (result.IsSuccessStatusCode == false)
+            {
+                log.LogError(jsonString);
+                return null;
+            }
             var datas = JsonConvert.DeserializeObject<List<CovidModel>>(jsonString);
 
             return datas;
